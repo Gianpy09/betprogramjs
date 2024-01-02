@@ -9,7 +9,11 @@ app.use(cors());
 
 const apiKey = '49240a09ef5a450296971365ed9a6489';
 
-app.use(express.static(path.join(__dirname, 'public')));
+// Aggiungi un middleware per impostare l'URL di base in base alla richiesta
+app.use((req, res, next) => {
+  res.locals.baseUrl = `${req.protocol}://${req.get('host')}`;
+  next();
+});
 
 async function getMatchData(matchId) {
   try {
@@ -26,13 +30,13 @@ async function getMatchData(matchId) {
   }
 }
 
-app.get('/matches-json', async (req, res) => {
-  try {
-    const response = await axios.get('https://api.football-data.org/v4/matches', {
-      headers: {
-        'X-Auth-Token': apiKey,
-      },
-    });
+app.get('/matches-list', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'matches-list.html'));
+});
+
+app.listen(port, () => {
+  console.log(`Server in ascolto sulla porta ${port}`);
+});
 
     const footballData = response.data;
     res.json(footballData);
