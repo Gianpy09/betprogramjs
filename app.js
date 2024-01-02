@@ -79,37 +79,32 @@ app.get('/match/:id/stats', async (req, res) => {
 app.get('/team/:id/average-shots', async (req, res) => {
   try {
     const teamId = req.params.id;
+    const response = await axios.get(`https://api.football-data.org/v4/teams/${teamId}`, {
+      headers: {
+        'X-Auth-Token': apiKey,
+      },
+    });
 
-    const homeMatchesResponse = await axios.get(`https://api.football-data.org/v4/matches`, {
+    const team = response.data;
+
+    const matchesResponse = await axios.get(`https://api.football-data.org/v4/matches`, {
       headers: {
         'X-Auth-Token': apiKey,
       },
       params: {
         'season': 'current',
-        'homeTeam': teamId,
+        'status': 'FINISHED',
+        $or: [
+          { 'homeTeam.id': teamId },
+          { 'awayTeam.id': teamId },
+        ],
       },
     });
 
-    const awayMatchesResponse = await axios.get(`https://api.football-data.org/v4/matches`, {
-      headers: {
-        'X-Auth-Token': apiKey,
-      },
-      params: {
-        'season': 'current',
-        'awayTeam': teamId,
-      },
-    });
+    const matches = matchesResponse.data.matches;
+    const shotsStats = calculateAverageShots(matches);
 
-    const homeMatches = homeMatchesResponse.data.matches;
-    const homeShotsStats = calculateAverageShots(homeMatches);
-
-    const awayMatches = awayMatchesResponse.data.matches;
-    const awayShotsStats = calculateAverageShots(awayMatches);
-
-    res.json({
-      homeTeam: homeShotsStats,
-      awayTeam: awayShotsStats,
-    });
+    res.json(shotsStats);
   } catch (error) {
     console.error('Errore nel calcolo delle medie dei tiri:', error.message);
     res.status(500).json({ error: 'Errore nel calcolo delle medie dei tiri' });
