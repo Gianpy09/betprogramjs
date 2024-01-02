@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Football Match Statistics</title>
+</head>
+<body>
+  <h1>Elenco Partite</h1>
+  <ul id="matchList"></ul>
+  <div id="matchDetails"></div>
+
+  <script>
+    async function fetchMatches() {
+      const response = await fetch('http://localhost:3000/');
+      const matches = await response.json();
+
+      const matchListElement = document.getElementById('matchList');
+      matchListElement.innerHTML = '';
+
+      matches.forEach(match => {
+        const listItem = document.createElement('li');
+        listItem.textContent = `${match.homeTeam} vs ${match.awayTeam} - ${match.date}`;
+        listItem.addEventListener('click', () => fetchMatchDetails(match.id));
+        matchListElement.appendChild(listItem);
+      });
+    }
+
+    async function fetchMatchDetails(matchId) {
+      const response = await fetch(`http://localhost:3000/match/${matchId}`);
+      const matchDetails = await response.json();
+
+      const matchDetailsElement = document.getElementById('matchDetails');
+      matchDetailsElement.innerHTML = '';
+
+      if (matchDetails.error) {
+        const errorElement = document.createElement('p');
+        errorElement.textContent = matchDetails.error;
+        matchDetailsElement.appendChild(errorElement);
+      } else {
+        const statisticsElement = document.createElement('div');
+        statisticsElement.innerHTML = `
+          <h2>Statistiche Partita</h2>
+          <p>Tiri Casa: ${matchDetails.homeTeamShots}</p>
+          <p>Tiri Trasferta: ${matchDetails.awayTeamShots}</p>
+          <p>Massimo Tiri: ${matchDetails.maxShots}</p>
+          <p>Minimo Tiri: ${matchDetails.minShots}</p>
+        `;
+        matchDetailsElement.appendChild(statisticsElement);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchMatches);
+  </script>
+</body>
+</html>
