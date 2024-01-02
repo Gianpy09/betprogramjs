@@ -54,38 +54,37 @@ app.get('/match/:id', async (req, res) => {
   }
 });
 
+// Nuovo endpoint per ottenere le medie dei tiri totali e in porta per una squadra
+// Nuovo endpoint per ottenere le medie dei tiri totali e in porta per una squadra
+// Nuovo endpoint per ottenere le medie dei tiri totali e in porta per una squadra
 app.get('/team/:id/average-shots', async (req, res) => {
   try {
     const teamId = req.params.id;
 
-    // Ottenere tutte le partite in cui la squadra è di casa
-    const homeMatchesResponse = await axios.get(`https://api.football-data.org/v4/matches`, {
+    // Ottenere tutte le partite in cui la squadra è di casa o ospite
+    const allMatchesResponse = await axios.get(`https://api.football-data.org/v4/matches`, {
       headers: {
         'X-Auth-Token': apiKey,
       },
       params: {
-        'season': 'current', // Puoi aggiungere altri parametri per filtrare le partite
-        'homeTeam': teamId,
+        'season': 'current',
+        $or: [
+          { 'homeTeam': teamId },
+          { 'awayTeam': teamId },
+        ],
       },
     });
 
-    // Ottenere tutte le partite in cui la squadra è ospite
-    const awayMatchesResponse = await axios.get(`https://api.football-data.org/v4/matches`, {
-      headers: {
-        'X-Auth-Token': apiKey,
-      },
-      params: {
-        'season': 'current', // Puoi aggiungere altri parametri per filtrare le partite
-        'awayTeam': teamId,
-      },
-    });
+    const allMatches = allMatchesResponse.data.matches;
+
+    // Filtrare solo le partite in cui la squadra è di casa o ospite
+    const homeMatches = allMatches.filter(match => match.homeTeam.id === teamId);
+    const awayMatches = allMatches.filter(match => match.awayTeam.id === teamId);
 
     // Calcolare la media dei tiri totali e in porta per la squadra di casa
-    const homeMatches = homeMatchesResponse.data.matches;
     const homeShotsStats = calculateAverageShots(homeMatches);
 
     // Calcolare la media dei tiri totali e in porta per la squadra ospite
-    const awayMatches = awayMatchesResponse.data.matches;
     const awayShotsStats = calculateAverageShots(awayMatches);
 
     res.json({
@@ -104,20 +103,29 @@ function calculateAverageShots(matches) {
   let totalShotsOnTarget = 0;
 
   matches.forEach(match => {
-    // Assicurati che le statistiche dei tiri siano disponibili
+    // Verifica se le statistiche dei tiri sono disponibili
     if (match.statistics && match.statistics.shots && match.statistics.shots_on_goal) {
       totalShots += match.statistics.shots;
       totalShotsOnTarget += match.statistics.shots_on_goal;
     }
   });
 
-  const averageShots = totalShots / matches.length;
-  const averageShotsOnTarget = totalShotsOnTarget / matches.length;
+  // Verifica se ci sono partite disponibili per calcolare la media
+  if (matches.length > 0) {
+    const averageShots = totalShots / matches.length;
+    const averageShotsOnTarget = totalShotsOnTarget / matches.length;
 
-  return {
-    averageShots,
-    averageShotsOnTarget,
-  };
+    return {
+      averageShots,
+      averageShotsOnTarget,
+    };
+  } else {
+    // Se non ci sono partite, restituisci medie vuote
+    return {
+      averageShots: 0,
+      averageShotsOnTarget: 0,
+    };
+  }
 }
 
 
