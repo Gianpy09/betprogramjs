@@ -9,11 +9,7 @@ app.use(cors());
 
 const apiKey = '49240a09ef5a450296971365ed9a6489';
 
-// Aggiungi un middleware per impostare l'URL di base in base alla richiesta
-app.use((req, res, next) => {
-  res.locals.baseUrl = `${req.protocol}://${req.get('host')}`;
-  next();
-});
+app.use(express.static(path.join(__dirname, 'public')));
 
 async function getMatchData(matchId) {
   try {
@@ -30,13 +26,13 @@ async function getMatchData(matchId) {
   }
 }
 
-app.get('/matches-list', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'matches-list.html'));
-});
-
-app.listen(port, () => {
-  console.log(`Server in ascolto sulla porta ${port}`);
-});
+app.get('/matches-json', async (req, res) => {
+  try {
+    const response = await axios.get('https://api.football-data.org/v4/matches', {
+      headers: {
+        'X-Auth-Token': apiKey,
+      },
+    });
 
     const footballData = response.data;
     res.json(footballData);
@@ -49,21 +45,8 @@ app.listen(port, () => {
 app.get('/match/:id', async (req, res) => {
   try {
     const matchId = req.params.id;
-    const response = await axios.get(`https://api.football-data.org/v4/matches/${matchId}`, {
-      headers: {
-        'X-Auth-Token': apiKey,
-      },
-    });
-
-    const matchData = response.data;
-
-    // Verifichiamo che ci siano statistiche sui tiri disponibili
-    if (!matchData.statistics || !matchData.statistics.shots || !matchData.statistics.shots.on) {
-      res.json({ matchData });
-      return;
-    }
-
-    res.json({ matchData });
+    const matchData = await getMatchData(matchId);
+    res.json(matchData);
   } catch (error) {
     console.error('Errore nel recupero dei dati della partita:', error.message);
     res.status(500).json({ error: 'Errore nel recupero dei dati della partita' });
@@ -79,9 +62,11 @@ app.get('/match/:id/stats', async (req, res) => {
       },
     });
 
-    const matchStats = response.data.statistics;
+    const matchStats = response.data[0].statistics; // Modificato questo
 
     if (!matchStats || !matchStats.shots || !matchStats.shots_on_goal) {
+      // Se le statistiche non sono presenti, restituisci un oggetto vuoto
+      console.log('Statistiche dei tiri non presenti per la partita', matchId);
       res.json({ matchStats: {} });
       return;
     }
@@ -96,27 +81,29 @@ app.get('/match/:id/stats', async (req, res) => {
 app.get('/team/:id/average-shots', async (req, res) => {
   try {
     const teamId = req.params.id;
-    const response = await axios.get(`https://api.football-data.org/v4/teams/${teamId}/matches`, {
+
+    const homeMatchesResponse = await axios.get(`https://api.football-data.org/v4/teams/${teamId}/matches?status=FINISHED&limit=5`, {
       headers: {
         'X-Auth-Token': apiKey,
       },
-      params: {
-        'status': 'FINISHED',
-        'limit': 1,
+    });
+
+    const awayMatchesResponse = await axios.get(`https://api.football-data.org/v4/teams/${teamId}/matches?status=FINISHED&limit=5`, {
+      headers: {
+        'X-Auth-Token': apiKey,
       },
     });
 
-    const matches = response.data.matches;
+    const homeMatches = homeMatchesResponse.data.matches;
+    const homeShotsStats = calculateAverageShots(homeMatches);
 
-    // Verifichiamo che ci siano partite disponibili per la squadra
-    if (!matches || matches.length === 0) {
-      res.json({ averageShots: 0, averageShotsOnTarget: 0 });
-      return;
-    }
+    const awayMatches = awayMatchesResponse.data.matches;
+    const awayShotsStats = calculateAverageShots(awayMatches);
 
-    const shotsStats = calculateAverageShots(matches);
-
-    res.json(shotsStats);
+    res.json({
+      homeTeam: homeShotsStats,
+      awayTeam: awayShotsStats,
+    });
   } catch (error) {
     console.error('Errore nel calcolo delle medie dei tiri:', error.message);
     res.status(500).json({ error: 'Errore nel calcolo delle medie dei tiri' });
@@ -128,9 +115,9 @@ function calculateAverageShots(matches) {
   let totalShotsOnTarget = 0;
 
   matches.forEach(match => {
-    if (match.statistics && match.statistics.shots && match.statistics.shots.on) {
+    if (match.statistics && match.statistics.shots && match.statistics.shots.onTarget) {
       totalShots += match.statistics.shots.total;
-      totalShotsOnTarget += match.statistics.shots.on;
+      totalShotsOnTarget += match.statistics.shots.onTarget;
     }
   });
 
@@ -142,6 +129,7 @@ function calculateAverageShots(matches) {
     averageShotsOnTarget,
   };
 }
+
 
 app.get('/matches-list', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'matches-list.html'));
