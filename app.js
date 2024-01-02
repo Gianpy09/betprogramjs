@@ -5,6 +5,7 @@ const app = express();
 const port = 3000;
 
 const cors = require('cors');
+app.use(cors());
 
 const apiKey = '49240a09ef5a450296971365ed9a6489';
 
@@ -52,17 +53,16 @@ app.get('/match/:id', async (req, res) => {
   }
 });
 
-
 app.get('/match/:id/stats', async (req, res) => {
   try {
     const matchId = req.params.id;
-    const response = await axios.get(`https://api.football-data.org/v4/matches/${matchId}/statistics`, {
+    const response = await axios.get(`https://api.football-data.org/v4/matches/${matchId}`, {
       headers: {
         'X-Auth-Token': apiKey,
       },
     });
 
-    const matchStats = response.data.statistics; // Modificato questo
+    const matchStats = response.data.statistics;
 
     if (!matchStats || !matchStats.shots || !matchStats.shots_on_goal) {
       res.json({ matchStats: {} });
@@ -76,8 +76,45 @@ app.get('/match/:id/stats', async (req, res) => {
   }
 });
 
+app.get('/team/:id/average-shots', async (req, res) => {
+  try {
+    const teamId = req.params.id;
 
+    const homeMatchesResponse = await axios.get(`https://api.football-data.org/v4/matches`, {
+      headers: {
+        'X-Auth-Token': apiKey,
+      },
+      params: {
+        'season': 'current',
+        'homeTeam': teamId,
+      },
+    });
 
+    const awayMatchesResponse = await axios.get(`https://api.football-data.org/v4/matches`, {
+      headers: {
+        'X-Auth-Token': apiKey,
+      },
+      params: {
+        'season': 'current',
+        'awayTeam': teamId,
+      },
+    });
+
+    const homeMatches = homeMatchesResponse.data.matches;
+    const homeShotsStats = calculateAverageShots(homeMatches);
+
+    const awayMatches = awayMatchesResponse.data.matches;
+    const awayShotsStats = calculateAverageShots(awayMatches);
+
+    res.json({
+      homeTeam: homeShotsStats,
+      awayTeam: awayShotsStats,
+    });
+  } catch (error) {
+    console.error('Errore nel calcolo delle medie dei tiri:', error.message);
+    res.status(500).json({ error: 'Errore nel calcolo delle medie dei tiri' });
+  }
+});
 
 function calculateAverageShots(matches) {
   let totalShots = 0;
