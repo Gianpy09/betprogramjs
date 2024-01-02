@@ -6,56 +6,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Elenco Partite</title>
 </head>
+<!-- ... Alcuni tag head rimossi per brevità ... -->
+
 <body>
   <h1>Elenco Partite</h1>
   <ul id="matches-list"></ul>
 
   <script>
-  const apiUrl = 'http://localhost:3000';
+    // Rimuovi la definizione dell'API URL, useremo res.locals.baseUrl invece
 
-  async function loadMatches() {
-    try {
-      const response = await fetch(`${apiUrl}/matches-json`);
-      const data = await response.json();
+    async function loadMatches() {
+      try {
+        const response = await fetch('/matches-json');  // Utilizza un percorso relativo
+        const data = await response.json();
 
-      console.log('Data from server:', data); // Aggiunto per il debug
+        console.log('Data from server:', data);
 
-      const matchesList = document.getElementById('matches-list');
-      data.matches.forEach(match => {
-        const listItem = document.createElement('li');
-        listItem.innerHTML = `<a href="${apiUrl}/match/${match.id}">${match.homeTeam.name} vs ${match.awayTeam.name}</a> - ${match.utcDate}`;
-        matchesList.appendChild(listItem);
+        const matchesList = document.getElementById('matches-list');
+        data.matches.forEach(match => {
+          const listItem = document.createElement('li');
+          listItem.innerHTML = `<a href="/match/${match.id}">${match.homeTeam.name} vs ${match.awayTeam.name}</a> - ${match.utcDate}`;
+          matchesList.appendChild(listItem);
 
-        // Aggiungi una chiamata per ottenere le medie dei tiri totali e in porta per ogni squadra
-        loadAverageShots(match.homeTeam.id, 'Home', listItem);
-        loadAverageShots(match.awayTeam.id, 'Away', listItem);
-      });
-    } catch (error) {
-      console.error('Errore nel recupero dell\'elenco delle partite:', error.message);
+          loadAverageShots(match.id, listItem);
+        });
+      } catch (error) {
+        console.error('Errore nel recupero dell\'elenco delle partite:', error.message);
+      }
     }
-  }
 
-  async function loadAverageShots(teamId, location, listItem) {
-    try {
-      const response = await fetch(`${apiUrl}/team/${teamId}/average-shots`);
-      const stats = await response.json();
+    async function loadAverageShots(matchId, listItem) {
+      try {
+        const response = await fetch(`/match/${matchId}/stats`);  // Utilizza un percorso relativo
+        const stats = await response.json();
 
-      console.log(`Stats for ${location} team:`, stats); // Aggiunto per il debug
+        console.log(`Stats for match ${matchId}:`, stats);
 
-      const averageShots = stats[`${location.toLowerCase()}Team`].averageShots;
-      const averageShotsOnTarget = stats[`${location.toLowerCase()}Team`].averageShotsOnTarget;
+        const averageShots = stats.matchStats?.shots?.average;
+        const averageShotsOnTarget = stats.matchStats?.shots_on_goal?.average;
 
-      // Aggiungi le informazioni sulle medie dei tiri nel listItem
-      listItem.innerHTML += `<br>${location} Team Average Shots: ${averageShots.toFixed(2)}, Average Shots on Target: ${averageShotsOnTarget.toFixed(2)}`;
-    } catch (error) {
-      console.error(`Errore nel recupero delle medie dei tiri per ${location} team:`, error.message);
+        listItem.innerHTML += `<br>Average Shots: ${averageShots ? averageShots.toFixed(2) : 'N/A'}, Average Shots on Target: ${averageShotsOnTarget ? averageShotsOnTarget.toFixed(2) : 'N/A'}`;
+      } catch (error) {
+        console.error(`Errore nel recupero delle medie dei tiri per la partita ${matchId}:`, error.message);
+      }
     }
-  }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    loadMatches();
-  });
-</script>
-
+    document.addEventListener('DOMContentLoaded', () => {
+      loadMatches();
+    });
+  </script>
 </body>
 </html>
