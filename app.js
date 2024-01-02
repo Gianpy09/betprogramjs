@@ -45,8 +45,21 @@ app.get('/matches-json', async (req, res) => {
 app.get('/match/:id', async (req, res) => {
   try {
     const matchId = req.params.id;
-    const matchData = await getMatchData(matchId);
-    res.json(matchData);
+    const response = await axios.get(`https://api.football-data.org/v4/matches/${matchId}`, {
+      headers: {
+        'X-Auth-Token': apiKey,
+      },
+    });
+
+    const matchData = response.data;
+
+    // Verifichiamo che ci siano statistiche sui tiri disponibili
+    if (!matchData.statistics || !matchData.statistics.shots || !matchData.statistics.shots.on) {
+      res.json({ matchData });
+      return;
+    }
+
+    res.json({ matchData });
   } catch (error) {
     console.error('Errore nel recupero dei dati della partita:', error.message);
     res.status(500).json({ error: 'Errore nel recupero dei dati della partita' });
@@ -79,29 +92,24 @@ app.get('/match/:id/stats', async (req, res) => {
 app.get('/team/:id/average-shots', async (req, res) => {
   try {
     const teamId = req.params.id;
-    const response = await axios.get(`https://api.football-data.org/v4/teams/${teamId}`, {
-      headers: {
-        'X-Auth-Token': apiKey,
-      },
-    });
-
-    const team = response.data;
-
-    const matchesResponse = await axios.get(`https://api.football-data.org/v4/matches`, {
+    const response = await axios.get(`https://api.football-data.org/v4/teams/${teamId}/matches`, {
       headers: {
         'X-Auth-Token': apiKey,
       },
       params: {
-        'season': 'current',
         'status': 'FINISHED',
-        $or: [
-          { 'homeTeam.id': teamId },
-          { 'awayTeam.id': teamId },
-        ],
+        'limit': 1,
       },
     });
 
-    const matches = matchesResponse.data.matches;
+    const matches = response.data.matches;
+
+    // Verifichiamo che ci siano partite disponibili per la squadra
+    if (!matches || matches.length === 0) {
+      res.json({ averageShots: 0, averageShotsOnTarget: 0 });
+      return;
+    }
+
     const shotsStats = calculateAverageShots(matches);
 
     res.json(shotsStats);
@@ -116,9 +124,9 @@ function calculateAverageShots(matches) {
   let totalShotsOnTarget = 0;
 
   matches.forEach(match => {
-    if (match.statistics && match.statistics.shots && match.statistics.shots_on_goal) {
+    if (match.statistics && match.statistics.shots && match.statistics.shots.on) {
       totalShots += match.statistics.shots.total;
-      totalShotsOnTarget += match.statistics.shots.onTarget;
+      totalShotsOnTarget += match.statistics.shots.on;
     }
   });
 
