@@ -5,7 +5,6 @@ const app = express();
 const port = 3000;
 
 const cors = require('cors');
-app.use(cors());
 
 const apiKey = '49240a09ef5a450296971365ed9a6489';
 
@@ -26,7 +25,6 @@ async function getMatchData(matchId) {
   }
 }
 
-// Nuova route per ottenere le partite in formato JSON
 app.get('/matches-json', async (req, res) => {
   try {
     const response = await axios.get('https://api.football-data.org/v4/matches', {
@@ -54,80 +52,52 @@ app.get('/match/:id', async (req, res) => {
   }
 });
 
-// Nuovo endpoint per ottenere le medie dei tiri totali e in porta per una squadra
-// Nuovo endpoint per ottenere le medie dei tiri totali e in porta per una squadra
-// Nuovo endpoint per ottenere le medie dei tiri totali e in porta per una squadra
-app.get('/team/:id/average-shots', async (req, res) => {
-  try {
-    const teamId = req.params.id;
 
-    // Ottenere tutte le partite in cui la squadra è di casa o ospite
-    const allMatchesResponse = await axios.get(`https://api.football-data.org/v4/matches`, {
+app.get('/match/:id/stats', async (req, res) => {
+  try {
+    const matchId = req.params.id;
+    const response = await axios.get(`https://api.football-data.org/v4/matches/${matchId}/statistics`, {
       headers: {
         'X-Auth-Token': apiKey,
       },
-      params: {
-        'season': 'current',
-        $or: [
-          { 'homeTeam': teamId },
-          { 'awayTeam': teamId },
-        ],
-      },
     });
 
-    const allMatches = allMatchesResponse.data.matches;
+    const matchStats = response.data.statistics; // Modificato questo
 
-    // Filtrare solo le partite in cui la squadra è di casa o ospite
-    const homeMatches = allMatches.filter(match => match.homeTeam.id === teamId);
-    const awayMatches = allMatches.filter(match => match.awayTeam.id === teamId);
+    if (!matchStats || !matchStats.shots || !matchStats.shots_on_goal) {
+      res.json({ matchStats: {} });
+      return;
+    }
 
-    // Calcolare la media dei tiri totali e in porta per la squadra di casa
-    const homeShotsStats = calculateAverageShots(homeMatches);
-
-    // Calcolare la media dei tiri totali e in porta per la squadra ospite
-    const awayShotsStats = calculateAverageShots(awayMatches);
-
-    res.json({
-      homeTeam: homeShotsStats,
-      awayTeam: awayShotsStats,
-    });
+    res.json({ matchStats });
   } catch (error) {
-    console.error('Errore nel calcolo delle medie dei tiri:', error.message);
-    res.status(500).json({ error: 'Errore nel calcolo delle medie dei tiri' });
+    console.error('Errore nel recupero delle statistiche dei tiri:', error.message);
+    res.status(500).json({ error: 'Errore nel recupero delle statistiche dei tiri' });
   }
 });
 
-// Funzione di supporto per calcolare la media dei tiri totali e in porta
+
+
+
 function calculateAverageShots(matches) {
   let totalShots = 0;
   let totalShotsOnTarget = 0;
 
   matches.forEach(match => {
-    // Verifica se le statistiche dei tiri sono disponibili
     if (match.statistics && match.statistics.shots && match.statistics.shots_on_goal) {
-      totalShots += match.statistics.shots;
-      totalShotsOnTarget += match.statistics.shots_on_goal;
+      totalShots += match.statistics.shots.total;
+      totalShotsOnTarget += match.statistics.shots.onTarget;
     }
   });
 
-  // Verifica se ci sono partite disponibili per calcolare la media
-  if (matches.length > 0) {
-    const averageShots = totalShots / matches.length;
-    const averageShotsOnTarget = totalShotsOnTarget / matches.length;
+  const averageShots = totalShots / matches.length;
+  const averageShotsOnTarget = totalShotsOnTarget / matches.length;
 
-    return {
-      averageShots,
-      averageShotsOnTarget,
-    };
-  } else {
-    // Se non ci sono partite, restituisci medie vuote
-    return {
-      averageShots: 0,
-      averageShotsOnTarget: 0,
-    };
-  }
+  return {
+    averageShots,
+    averageShotsOnTarget,
+  };
 }
-
 
 app.get('/matches-list', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'matches-list.html'));
