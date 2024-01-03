@@ -35,6 +35,9 @@ app.get('/matches-json', async (req, res) => {
     });
 
     const footballData = response.data;
+	 console.log('Data retrieved from API:', footballData); // Aggiungi questa linea
+
+	
     res.json(footballData);
   } catch (error) {
     console.error('Errore nel recupero dei dati delle partite:', error.message);
@@ -56,27 +59,26 @@ app.get('/match/:id', async (req, res) => {
 app.get('/match/:id/stats', async (req, res) => {
   try {
     const matchId = req.params.id;
-    const response = await axios.get(`https://api.football-data.org/v4/matches/${matchId}`, {
-      headers: {
-        'X-Auth-Token': apiKey,
-      },
-    });
+    const matchData = await getMatchData(matchId);
+    console.log('Match data:', matchData);
 
-    const matchStats = response.data[0].statistics; // Modificato questo
+    const matchStats = matchData.statistics; // Modificato questo
+    console.log('Match statistics:', matchStats);
 
-    if (!matchStats || !matchStats.shots || !matchStats.shots_on_goal) {
-      // Se le statistiche non sono presenti, restituisci un oggetto vuoto
-      console.log('Statistiche dei tiri non presenti per la partita', matchId);
+    if (!matchStats || !matchStats.shots || !matchStats.shots_on_target) {
+      console.log('Shots statistics not present for match', matchId);
       res.json({ matchStats: {} });
       return;
     }
 
     res.json({ matchStats });
   } catch (error) {
-    console.error('Errore nel recupero delle statistiche dei tiri:', error.message);
-    res.status(500).json({ error: 'Errore nel recupero delle statistiche dei tiri' });
+    console.error('Error retrieving shots statistics:', error.message);
+    res.status(500).json({ error: 'Error retrieving shots statistics' });
   }
 });
+
+
 
 app.get('/team/:id/average-shots', async (req, res) => {
   try {
@@ -115,11 +117,14 @@ function calculateAverageShots(matches) {
   let totalShotsOnTarget = 0;
 
   matches.forEach(match => {
-    if (match.statistics && match.statistics.shots && match.statistics.shots.onTarget) {
+    if (match.statistics && match.statistics.shots && match.statistics.shots_on_target) {
       totalShots += match.statistics.shots.total;
-      totalShotsOnTarget += match.statistics.shots.onTarget;
+      totalShotsOnTarget += match.statistics.shots_on_target.total;
     }
   });
+
+  console.log('Total shots:', totalShots); // Aggiungi questa linea
+  console.log('Total shots on target:', totalShotsOnTarget); // Aggiungi questa linea
 
   const averageShots = totalShots / matches.length;
   const averageShotsOnTarget = totalShotsOnTarget / matches.length;
@@ -129,6 +134,7 @@ function calculateAverageShots(matches) {
     averageShotsOnTarget,
   };
 }
+
 
 
 app.get('/matches-list', (req, res) => {
