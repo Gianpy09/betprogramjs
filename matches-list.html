@@ -28,32 +28,38 @@
           listItem.innerHTML = `<a href="/match/${match.id}">${match.homeTeam.name} vs ${match.awayTeam.name}</a> - ${match.utcDate}`;
           matchesList.appendChild(listItem);
 
-          loadAverageShots(match.id, listItem);
+          loadAverageShots(match.homeTeam.id, 'Home', listItem, data);
+		  loadAverageShots(match.awayTeam.id, 'Away', listItem, data);
+
         });
       } catch (error) {
         console.error('Errore nel recupero dell\'elenco delle partite:', error.message);
       }
     }
 
-    async function loadAverageShots(teamId, listItem) {
-      try {
-        const response = await fetch(`/team/${teamId}/average-shots`);
-        const stats = await response.json();
+   async function loadAverageShots(teamId, location, listItem, data) {
+  try {
+    const response = await fetch(`/team/${teamId}/average-shots`);
+    const stats = await response.json();
 
-        console.log(`Stats for team ${teamId}:`, stats);
+    console.log(`Stats for team ${teamId} (${location}):`, stats);
 
-        const location = teamId === data.matches.homeTeam.id ? 'Home' : 'Away';
+    const location = teamId === data.matches[0].homeTeam.id ? 'Home' : 'Away';
 
-        const averageShots = stats[`${location.toLowerCase()}Team`].averageShots;
-        const averageShotsOnTarget = stats[`${location.toLowerCase()}Team`].averageShotsOnTarget;
+    console.log('Location:', location);
 
-        console.log(`Average Shots: ${averageShots.toFixed(2)}, Average Shots on Target: ${averageShotsOnTarget.toFixed(2)}`);
+    const averageShots = stats[`${location.toLowerCase()}Team`].averageShots;
+    const averageShotsOnTarget = stats[`${location.toLowerCase()}Team`].averageShotsOnTarget;
 
-        listItem.innerHTML += `<br>${location} Team Average Shots: ${averageShots.toFixed(2)}, Average Shots on Target: ${averageShotsOnTarget.toFixed(2)}`;
-      } catch (error) {
-        console.error(`Error retrieving average shots for team ${teamId}:`, error.message);
-      }
-    }
+    console.log(`Average Shots: ${averageShots.toFixed(2)}, Average Shots on Target: ${averageShotsOnTarget.toFixed(2)}`);
+
+    listItem.innerHTML += `<br>${location} Team Average Shots: ${averageShots.toFixed(2)}, Average Shots on Target: ${averageShotsOnTarget.toFixed(2)}`;
+  } catch (error) {
+    console.error(`Error retrieving average shots for team ${teamId} (${location}):`, error.message);
+  }
+}
+
+
 
     document.addEventListener('DOMContentLoaded', () => {
       loadMatches();
