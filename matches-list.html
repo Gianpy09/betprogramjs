@@ -35,19 +35,23 @@
       }
     }
 
-    async function loadAverageShots(matchId, listItem) {
+    async function loadAverageShots(teamId, listItem) {
       try {
-        const response = await fetch(`/match/${matchId}/stats`);  // Utilizza un percorso relativo
+        const response = await fetch(`/team/${teamId}/average-shots`);
         const stats = await response.json();
 
-        console.log(`Stats for match ${matchId}:`, stats);
+        console.log(`Stats for team ${teamId}:`, stats);
 
-        const averageShots = stats.matchStats?.shots?.average;
-        const averageShotsOnTarget = stats.matchStats?.shots_on_goal?.average;
+        const location = teamId === data.matches.homeTeam.id ? 'Home' : 'Away';
 
-        listItem.innerHTML += `<br>Average Shots: ${averageShots ? averageShots.toFixed(2) : 'N/A'}, Average Shots on Target: ${averageShotsOnTarget ? averageShotsOnTarget.toFixed(2) : 'N/A'}`;
+        const averageShots = stats[`${location.toLowerCase()}Team`].averageShots;
+        const averageShotsOnTarget = stats[`${location.toLowerCase()}Team`].averageShotsOnTarget;
+
+        console.log(`Average Shots: ${averageShots.toFixed(2)}, Average Shots on Target: ${averageShotsOnTarget.toFixed(2)}`);
+
+        listItem.innerHTML += `<br>${location} Team Average Shots: ${averageShots.toFixed(2)}, Average Shots on Target: ${averageShotsOnTarget.toFixed(2)}`;
       } catch (error) {
-        console.error(`Errore nel recupero delle medie dei tiri per la partita ${matchId}:`, error.message);
+        console.error(`Error retrieving average shots for team ${teamId}:`, error.message);
       }
     }
 
